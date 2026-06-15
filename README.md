@@ -107,8 +107,14 @@ A live concurrency diagnostics utility engineered to detect, isolate, and trace 
 
 ### Technical Logic & Guardrails
 * **Lock Contention Filtering:** Isolates records using an active boundary criteria where `r.blocking_session_id <> 0`. This cleanly filters out healthy, executing, or idle transactions to focus exclusively on active transaction blockages.
-* **Bidirectional SQL text Extraction:** Utilizes a dual execution mapping pattern with `CROSS APPLY` and `OUTER APPLY` over the system handles (`sql_handle`). It surfaces the exact T-SQL text segment being executed by the blocked session *simultaneously* alongside the query text running inside the blocking session.
+* **Bidirectional SQL Text Extraction:** Utilizes a dual execution mapping pattern with `CROSS APPLY` and `OUTER APPLY` over the system handles (`sql_handle`). It surfaces the exact T-SQL text segment being executed by the blocked session *simultaneously* alongside the query text running inline inside the blocking session.
 * **Administrative Telemetry:** Exposes active connection variables including client machine roots (`host_name`), software application contexts (`program_name`), corporate logins (`login_name`), wait thresholds (`wait_time` mapped to seconds), and structural lock categories (`wait_type`).
+* **Query vs. Mutation Identification:** The script surfaces `Blocking_SQL_Text` to allow engineers to visually scan for write operations (`UPDATE`, `DELETE`, `INSERT`). Programmatically, the underlying `sys.dm_exec_requests` table exposes a `.command` property which explicitly states the execution type (e.g., `SELECT` vs. `DELETE`), allowing instant identification of data-modifying workloads.
+
+### Remediation & Operational Notes
+* **Targeted Session Termination:** If a blocking chain must be broken manually, the root `Blocking_SPID` can be passed to the T-SQL termination engine: `KILL <SPID>`. This requires `sysadmin`, `processadmin`, or server-level `ALTER ANY CONNECTION` privileges.
+* **The Rollback Insurance Valve:** Issuing a `KILL` command on an active data mutation forces the engine to roll back transactional state row-by-row to guarantee database atomicity. During heavy write rollbacks, the session remains in a temporary `KILLED/ROLLBACK` state and continues holding exclusive locks.
+* **Rollback Telemetry tracking:** If a killed session continues to block downstream requests, the real-time rollback completion trajectory and estimated time remaining can be checked securely without resetting the query thread by executing: `KILL <SPID> WITH STATUSONLY`.
 </details>
 
 <details>
