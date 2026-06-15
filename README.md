@@ -47,6 +47,28 @@ Implements a highly sophisticated data purge strategy by completely decoupling t
   * It immediately shreds the corresponding 4,999 key records out of the temporary table (`#TargetsToPurge`). This double-cleanup ensures that subsequent subquery iterations evaluate a continually shrinking dataset, preventing performance degradation as the script nears completion.
 </details>
 
+<details>
+<summary>📂 <code>restore_history.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2012+) / System Instance Layer
+* **Core Features:** Dynamic system catalog querying (`msdb`), analytic lookahead windowing (`LEAD()`), timeline partitioning.
+
+### Functional Overview
+A system administration and data governance script designed to audit the transactional database restoration history across a SQL Server instance. It tracks database snapshot deployments, monitors disaster recovery synchronization schedules, and evaluates configuration safety flags. Rather than returning a static log, it calculates exact point-in-time chronological validity windows to show precisely how long any given database restoration remained the active state of the environment.
+
+### Technical Logic & Guardrails
+* **Analytic Timeline Segmentation:** Employs a `LEAD(restore_date) OVER (PARTITION BY destination_database_name ORDER BY restore_date ASC)` window map. This records the exact timestamp of the *subsequent* restoration checkpoint as `next_date`. 
+* **Environment Validity Windows:** By pairing the actual event execution date (`restore_date`) with the captured lookahead timestamp (`next_date`), the query constructs discrete, bounded time intervals. This allows data engineers to instantly evaluate the lifespan of an active database snapshot before it was overwritten by a subsequent restore loop.
+* **System Instance Scope:** Queries directly out of the application database context into the Microsoft SQL Server system instance catalog: `[msdb].[dbo].[restorehistory]`. 
+* **Infrastructure Security Note:** Because this script references the native `msdb` system table, the executing user context requires explicit database-level permissions (such as membership in the `db_datareader` role within `msdb` or membership in the `sysadmin` fixed server role).
+* **Surfaced Administration Metrics:**
+  * `user_name`: Tracks the infrastructure operator or automated pipeline service account that triggered the execution.
+  * `restore_type`: Identifies the backup restore style applied (e.g., Database, File, or Log).
+  * `replace` / `recovery` / `restart`: Exposes the boolean state safety configurations passed during the DDL operation (crucial for troubleshooting interrupted recovery loops).
+</details>
+
 ---
 
 ## 🐘 PostgreSQL (PL/pgSQL)
