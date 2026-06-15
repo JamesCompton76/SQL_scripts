@@ -47,6 +47,8 @@ Implements a highly sophisticated data purge strategy by completely decoupling t
   * It immediately shreds the corresponding 4,999 key records out of the temporary table (`#TargetsToPurge`). This double-cleanup ensures that subsequent subquery iterations evaluate a continually shrinking dataset, preventing performance degradation as the script nears completion.
 </details>
 
+### 📊 System Administration & Monitoring
+
 <details>
 <summary>📂 <code>restore_history.sql</code></summary>
 
