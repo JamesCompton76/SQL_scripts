@@ -8,7 +8,7 @@ A curated collection of performant, high-concurrency database utility scripts, a
 
 Optimized routines specifically engineered for the T-SQL dialect and the SQL Server database engine.
 
-### ⚡ Data Cleansing & Maintenance
+### ⚡ Data Cleansing & Maintenance 
 
 <details>
 <summary>📂 <code>batch_delete.sql</code></summary>
@@ -50,7 +50,7 @@ Implements a highly sophisticated data purge strategy by completely decoupling t
 <details>
 <summary>📂 <code>deduplicate_records.sql</code></summary>
 
-### Technical Metadata
+### Technical Metadata **NEED TO TEST THESE**
 * **Dialect:** T-SQL
 * **Target Engine:** Microsoft SQL Server (2005+)
 * **Core Features:** Common Table Expressions (CTEs), windowed sequence partitioning (`ROW_NUMBER()`), inline pointer modifications, execution plan sorting bypass (`SELECT NULL`).
