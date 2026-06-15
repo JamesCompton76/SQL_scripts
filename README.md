@@ -94,6 +94,61 @@ A database administration and capacity monitoring utility that calculates real-t
   * `UsedSpaceMB`: The actual disk volume consumed by active records and index roots.
 </details>
 
+<details>
+<summary>📂 <code>blocking_detection.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** Active request monitoring (`sys.dm_exec_requests`), connection session properties (`sys.dm_exec_sessions`), inline text extraction vectors (`sys.dm_exec_sql_text`).
+
+### Functional Overview
+A live concurrency diagnostics utility engineered to detect, isolate, and trace active blocking lock loops across the database instance. When a production table freezes or an application hangs, this script targets the engine's scheduling layers to pinpoint the exact root Session ID (SPID) causing the bottleneck, isolating the "head blocker" from the downstream wait conditions.
+
+### Technical Logic & Guardrails
+* **Lock Contention Filtering:** Isolates records using an active boundary criteria where `r.blocking_session_id <> 0`. This cleanly filters out healthy, executing, or idle transactions to focus exclusively on active transaction blockages.
+* **Bidirectional SQL text Extraction:** Utilizes a dual execution mapping pattern with `CROSS APPLY` and `OUTER APPLY` over the system handles (`sql_handle`). It surfaces the exact T-SQL text segment being executed by the blocked session *simultaneously* alongside the query text running inside the blocking session.
+* **Administrative Telemetry:** Exposes active connection variables including client machine roots (`host_name`), software application contexts (`program_name`), corporate logins (`login_name`), wait thresholds (`wait_time` mapped to seconds), and structural lock categories (`wait_type`).
+</details>
+
+<details>
+<summary>📂 <code>fragmentation_detection.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** Storage layout statistics (`sys.dm_db_index_physical_stats`), master index mappings (`sys.indexes`), programmatic syntax assembly via conditional `CASE` grids.
+
+### Functional Overview
+An automated storage infrastructure audit utility that monitors the physical page fragmentation metrics of database table indexes. Deleting or updating large sets of records inevitably leaves gaps across physical disk pages. This script identifies degraded index nodes and programmatically generates the required remediation scripts (`REBUILD` or `REORGANIZE`) to eliminate unnecessary storage read/write overhead.
+
+### Technical Logic & Guardrails
+* **Performance-Minded Ingestion Scope:** Instructs the physical parsing engine to use a `'LIMITED'` scanning mode parameter. This samples root-level pages rather than traversing full index b-trees, ensuring the audit runs at lightning speed without stalling production I/O channels.
+* **Significance Threshold Filtering:** Implements a protective criteria filter:
+  * Restricts evaluation to indexes where `avg_fragmentation_in_percent > 10` to ignore baseline storage noise.
+  * Filters for tables where `page_count > 1000`, bypassing small tables where logical page layout fragmentation has a zero-net impact on query optimization plans.
+* **Programmatic Action Assignment:** Evaluates the page layout state against standard Microsoft database health thresholds using an inline conditional `CASE` block:
+  * *Fragmentation > 30%:* Assembles an immediate `REBUILD` DDL string to reconstruct the index framework.
+  * *Fragmentation 10% - 30%:* Assembles a low-overhead `REORGANIZE` DDL query to defragment existing data leaves.
+</details>
+
+<details>
+<summary>📂 <code>plan_cache_top_10_expensive.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** Query cache diagnostics (`sys.dm_exec_query_stats`), query plan extraction (`sys.dm_exec_query_plan`), precise script text offset parsing.
+
+### Functional Overview
+A performance tuning and monitoring tool that interrogates SQL Server's internal memory plan cache to expose the top 10 most expensive queries currently impacting the system. It ranks cached query footprints based on total CPU execution overhead (`total_worker_time`), tracking down unindexed queries, bad analytical joins, or system-stretching processes authored by downstream BI users.
+
+### Technical Logic & Guardrails
+* **Resource Cost Metric Ranking:** Implements a strict `ORDER BY total_worker_time DESC` constraint to force the database engine to rank its entire active cached execution registry by total processor consumption time before outputting the top 10 records.
+* **Granular Text Segment Slicing:** Because multiple individual statements can reside inside a single procedure or transactional batch, the script uses a sophisticated text-offset calculation pattern: `SUBSTRING(st.text, (qs.statement_start_offset/2)+1, ...)`. This isolates and displays the precise line-item statement causing the high resource draw rather than dumping the whole parent script.
+* **XML Execution Plan Extraction:** Deploys a `CROSS APPLY` operation out to `sys.dm_exec_query_plan(qs.plan_handle)`, outputting the full, graphical, interactive query optimization map (`query_plan`) directly into the SSMS result field for immediate index analysis.
+</details>
+
 ---
 
 ## 🐘 PostgreSQL (PL/pgSQL)
