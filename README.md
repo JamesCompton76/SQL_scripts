@@ -276,6 +276,25 @@ An automated physical tuning script that queries the SQL Server query optimizer'
   * `Included_Columns`: Non-key payload data mapped straight to the leaf nodes to eliminate costly base table bookmarked Key Lookups.
 </details>
 
+### 🔐 Security & Permissions Auditing
+
+<details>
+<summary>📂 <code>database_permission_audit.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** Security principal catalog parsing (`sys.database_principals`), cross-layer role mappings (`sys.database_role_members`), server-login side-channel matching (`sys.server_principals`).
+
+### Functional Overview
+A data governance and security audit script that maps database user accounts straight to their assigned security tokens, access footprints, and parent server logins. This is a critical validation step prior to launching data warehouse layers or establishing automated pipeline connections, ensuring that read/write privileges match strict security baselines and that data access satisfies enterprise compliance.
+
+### Technical Logic & Guardrails
+* **Isolation of User Principles:** Filters out built-in background identities and metadata layers (`sys`, `INFORMATION_SCHEMA`) to target active users and security groups.
+* **Bi-Level Access Validation:** Links database-level users (`sys.database_principals`) with their physical server-level authentication profiles (`sys.server_principals`) using the underlying Security Identifier (`sid`) binary array. This isolates database "orphan users"—accounts that can access the specific database structure but have lost their corresponding server login permission token.
+* **Role Aggregation Resolution:** Evaluates deep group dependencies by unrolling the identity mapping table (`sys.database_role_members`). This identifies precisely which operational profiles (e.g., `db_datareader`, `db_datawriter`) have been assigned to an identity, preventing inadvertent privilege creep across analytical tiers.
+</details>
+
 ---
 
 ## 🐘 PostgreSQL (PL/pgSQL)
