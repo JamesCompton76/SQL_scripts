@@ -76,6 +76,35 @@ A comprehensive de-duplication utility engine executing data purification direct
 * **CPU Optimization:** Because a windowing operation strictly mandates an internal sorting operation, this pattern leverages a performance-minded bypass trick: `ORDER BY (SELECT NULL)`. This tells the Query Optimizer to completely abandon the expensive physical resource-sorting processor phase, numbering the identical rows arbitrarily based on how they are encountered in the data blocks, significantly decreasing CPU utilization.
 </details>
 
+<details>
+<summary>📂 <code>sanitize_text_fields.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2000+)
+* **Core Features:** Dynamic string manipulation functions (`REPLACE`), character-code conversion engines (`CHAR`), text formatting injection mapping, procedural conditional loop structures (`WHILE`), programmatic transactional containment.
+
+### Functional Overview
+A high-performance data sanitation pipeline template engineered to strip hidden, non-printable formatting characters out of free-text descriptive fields. When workshop operators use multi-line text input fields on the shopfloor, the application layer frequently injects non-printable ASCII properties such as Carriage Returns (`CHAR(13)`), Line Feeds (`CHAR(10)`), and Horizontal Tabs (`CHAR(9)`). While SQL natively stores these characters, they corrupt downstream analytical workflows (e.g., throwing column alignment errors during CSV exports or breaking parquet file structures). This script safely replaces them with regular spaces while providing comprehensive diagnostic validation paths.
+
+### Technical Logic & Operational Variations
+
+#### 📊 Pattern A: Diagnostic & Visual Anatomy Scan (Pre-Flight Verification)
+* **Logic:** Deployed prior to making database mutations to evaluate the scope of corruption and confirm that text modification wont alter semantic value.
+* **Mechanism:** Rather than stripping characters immediately, it translates them into visible, printable bracketed tags: `CHAR(13) ➔ '[CR]'`, `CHAR(10) ➔ '[LF]'`, and `CHAR(9) ➔ '[TAB]'`.
+* **Outcome:** Surfaces hidden formatting anomalies in standard SSMS grids alongside an adjacent side-by-side preview of the clean text string. This allows for scale metrics assessment (`@@ROWCOUNT`) before choosing an execution strategy.
+
+#### ⚡ Pattern B: High-Velocity Direct Execution (Inline Update)
+* **Logic:** Applied if the diagnostic scan confirms the total target row footprint falls well below a single transaction safety ceiling (e.g., < 5,000 records).
+* **Mechanism:** Chains three nested `REPLACE()` operations together into a single atomic update pass, replacing formatting artifacts with white spaces.
+* **Guardrails:** Restricts engine cost by applying wildcard string-matching parameters in the `WHERE` filter. This prevents the storage engine from running expensive writes on records that are already clean.
+
+#### 🏎️ Pattern C: Scale-Protected Concurrency Safe Ingestion (Batched Loop Execution)
+* **Logic:** Deployed if the diagnostic pre-flight pass detects systemic corruption affecting massive swaths of data (e.g., millions of records).
+* **Mechanism:** Employs a procedural processing architecture that restricts operations to blocks of `TOP (4999)` rows wrapped inside explicit database transaction headers (`BEGIN TRANSACTION...COMMIT`).
+* **Outcome:** Eliminates the risk of transaction log (`.ldf`) bloat and blocks SQL Server from escalating page-level row locks into an Exclusive Table Lock (`X`), allowing live shopfloor application reads and writes to execute unhindered while the cleanup job runs.
+</details>
+
 ### 📊 System Administration & Monitoring
 
 <details>
