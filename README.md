@@ -237,6 +237,45 @@ A performance tuning and monitoring tool that interrogates SQL Server's internal
 * **XML Execution Plan Extraction:** Deploys a `CROSS APPLY` operation out to `sys.dm_exec_query_plan(qs.plan_handle)`, outputting the full, graphical, interactive query optimization map (`query_plan`) directly into the SSMS result field for immediate index analysis.
 </details>
 
+### 🔍 Schema Discovery & Metadata Exploration
+
+<details>
+<summary>📂 <code>find_column_everywhere.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** System catalog querying (`sys.columns`, `sys.tables`), alphanumeric wildcards, datatype metadata extraction.
+
+### Functional Overview
+A global discovery utility designed to crawl database metadata and find every instance of a specific column pattern across all tables and schemas. This tool is critical when inheriting undocumented legacy databases or executing data lineage mapping exercises prior to consolidating disparate records into unified One Big Table (OBT) layers.
+
+### Technical Logic & Guardrails
+* **System Object Integrity:** Isolates standard application schemas by targeting the native physical object-linking tables (`sys.tables` and `sys.columns`) via system-assigned `object_id` tokens.
+* **Granular Type Extraction:** Resolves numeric system datatype tokens into readable format strings (e.g., `VARCHAR`, `INT`, `DATETIME2`) by mapping internal user type IDs directly into the `sys.types` catalog view.
+</details>
+
+### 🚀 Performance & Indexing Optimization
+
+<details>
+<summary>📂 <code>missing_index_hunter.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** Dynamic Management Views (DMVs), programmatic execution metrics tracking, cost-savings algorithmic modeling.
+
+### Functional Overview
+An automated physical tuning script that queries the SQL Server query optimizer's internal memory cache to extract missing index recommendations. Rather than executing manual index auditing, this script uncovers the top 10 highest-yielding structural recommendations based on actual workload performance deficiencies across the current database context.
+
+### Technical Logic & Guardrails
+* **The Magic Impact Calculation:** Computes a composite evaluation rating utilizing the formula: `User Seeks * User Cost * (Avg User Impact / 100)`. This ensures that the results are sorted strictly by overall resource relief rather than trivial ad-hoc optimizations.
+* **Covering Index Segmentation:** Explicitly divides recommendations into three precise index-construction columns:
+  * `Equality_Columns`: Fields suited as primary search keys for direct lookup operations.
+  * `Inequality_Columns`: Fields targeted for range scans (`<`, `>`, `BETWEEN`).
+  * `Included_Columns`: Non-key payload data mapped straight to the leaf nodes to eliminate costly base table bookmarked Key Lookups.
+</details>
+
 ---
 
 ## 🐘 PostgreSQL (PL/pgSQL)
