@@ -71,6 +71,29 @@ A system administration and data governance script designed to audit the transac
   * `replace` / `recovery` / `restart`: Exposes the boolean state safety configurations passed during the DDL operation (crucial for troubleshooting interrupted recovery loops).
 </details>
 
+<details>
+<summary>📂 <code>table_size_rows.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2008+) / Linked Server Instance Layer
+* **Core Features:** Dynamic Management Views (DMVs), data page aggregation, precision numeric casting, partition stat tracking.
+
+### Functional Overview
+A database administration and capacity monitoring utility that calculates real-time row counts and disk storage footprints across user-defined tables on a targeted instance (`DBWV2J9900`). It serves as a diagnostic tool for storage analysis, tracking table inflation anomalies, monitoring indexing footprints, and mapping baseline data volumes prior to planning data engineering migrations or ETL pipelines.
+
+### Technical Logic & Guardrails
+* **Duplication Prevention:** Filters partition statistics strictly using `ps.index_id IN (0, 1)`. Isolating only Heaps (ID `0`) and Clustered Indexes (ID `1`) forces the engine to aggregate the base data pages exactly once, eliminating row-count inflation or capacity distortion caused by reading secondary non-clustered index pages.
+* **Storage Allocation Calculations:** Converts low-level 8KB database pages into human-readable Megabyte (MB) valuations using a precise calculation grid:
+  * Computes total reserved and used space via the formula: `(Page Count * 8 KB) / 1024.00 = Megabytes`.
+  * Forces numerical conformity and prevents trailing decimal truncation by wrapping the calculations in an explicit precision cast: `CAST(ROUND(..., 2) AS NUMERIC(36, 2))`.
+* **System Filters:** Integrates `t.is_ms_shipped = 0` to automatically drop native Microsoft SQL Server internal objects, ensuring the resulting dataset represents only active application tables.
+* **Surfaced Administration Metrics:**
+  * `ActualRowCounts`: The true scalar cardinality of rows residing in the base data partitions.
+  * `TotalReservedSpaceMB`: Total disk space allocated by the operating system for the table data and structures.
+  * `UsedSpaceMB`: The actual disk volume consumed by active records and index roots.
+</details>
+
 ---
 
 ## 🐘 PostgreSQL (PL/pgSQL)
