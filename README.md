@@ -47,6 +47,35 @@ Implements a highly sophisticated data purge strategy by completely decoupling t
   * It immediately shreds the corresponding 4,999 key records out of the temporary table (`#TargetsToPurge`). This double-cleanup ensures that subsequent subquery iterations evaluate a continually shrinking dataset, preventing performance degradation as the script nears completion.
 </details>
 
+<details>
+<summary>📂 <code>deduplicate_records.sql</code></summary>
+
+### Technical Metadata
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2005+)
+* **Core Features:** Common Table Expressions (CTEs), windowed sequence partitioning (`ROW_NUMBER()`), inline pointer modifications, execution plan sorting bypass (`SELECT NULL`).
+
+### Functional Overview
+A comprehensive de-duplication utility engine executing data purification directly in-place through a logical expression wrapper. Instead of implementing risky, high-overhead structural shifts—like migrating records to temporary tables, truncating sources, and rewriting datasets—this script exploits SQL Server's ability to map modifications through CTEs straight to physical disk addresses. It features hard-deletion routing, soft-delete tagging for warehouse lineage, and keyless heap table optimization.
+
+### Technical Logic & Operational Variations
+
+#### ⚡ Pattern A: Deterministic Surrogate Key Cleansing (Surgical Hard-Delete)
+* **Logic:** Applied when records are duplicate mirror images based on business meaning, but hold distinct, auto-generated database primary keys (e.g., identity columns or hashes).
+* **Mechanism:** Isolates data attributes within a `PARTITION BY` block, while forcing an explicit sequence sorting constraint inside the window configuration: `ORDER BY taxi_record_id ASC`. 
+* **Outcome:** The earliest historical insert receives a sequence rank of `1`. All subsequent identical iterations are systematically assigned incremented sequence integers (`2`, `3`, etc.). Running a targeted `DELETE WHERE row_num > 1` purges the duplicate noise while safely preserving the original root record.
+
+#### 🛡️ Pattern B: Audit-Safe Warehouse Tagging (The Update Pass)
+* **Logic:** Tailored for corporate OBT architectures where destructive purges are banned in favor of preserving explicit data lineage and auditability.
+* **Mechanism:** Captures row sequences identically to Pattern A, but shifts the modification footprint from a destructive `DELETE` statement to a passive inline `UPDATE`.
+* **Guardrails & Execution:** Modifies a physical state tracking column (`SET is_duplicate = 1`) directly through the CTE interface `WHERE row_num > 1`. *Crucial Engine Rule:* While you can safely modify any native base column passed through the CTE layout, attempting to directly alter the virtual computed `row_num` column will cause an immediate engine compilation failure.
+
+#### 🏎️ Pattern C: Keyless Heap / Flat OBT Processing (Performance Optimization)
+* **Logic:** Deployed against staging tables, denormalized OBT layouts, or heaps that possess zero unique system constraints or key keys, and rows are complete mirror duplicates.
+* **Mechanism:** To ensure true identity matching, it expands the window partition map to wrap **every single column** across the table structure.
+* **CPU Optimization:** Because a windowing operation strictly mandates an internal sorting operation, this pattern leverages a performance-minded bypass trick: `ORDER BY (SELECT NULL)`. This tells the Query Optimizer to completely abandon the expensive physical resource-sorting processor phase, numbering the identical rows arbitrarily based on how they are encountered in the data blocks, significantly decreasing CPU utilization.
+</details>
+
 ### 📊 System Administration & Monitoring
 
 <details>
