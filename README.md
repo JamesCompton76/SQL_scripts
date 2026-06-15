@@ -105,6 +105,22 @@ A high-performance data sanitation pipeline template engineered to strip hidden,
 * **Outcome:** Eliminates the risk of transaction log (`.ldf`) bloat and blocks SQL Server from escalating page-level row locks into an Exclusive Table Lock (`X`), allowing live shopfloor application reads and writes to execute unhindered while the cleanup job runs.
 </details>
 
+<details>
+<summary>📂 <code>audit_and_cast_types.sql</code></summary>
+
+### Technical Metadata **NOT TESTED AS YET**
+* **Dialect:** T-SQL
+* **Target Engine:** Microsoft SQL Server (2012+)
+* **Core Features:** Safe serialization routing (`TRY_CAST`), anomaly scanning, data quality isolation filters.
+
+### Functional Overview
+A proactive data quality auditing utility designed to scan raw, loosely typed alphanumeric columns (`VARCHAR`/`NVARCHAR`) and pinpoint the exact rogue rows preventing structural migration to stricter, high-performance data types (like `NUMERIC` or `DATETIME2`). It serves as a vital diagnostic layer when flattening raw production logs into structured OBT layouts for downstream Python or Skywise ingestion pipelines.
+
+### Technical Logic & Guardrails
+* **Explosion Prevention:** Rather than using a standard `CAST` or `CONVERT` which halts query processing and drops connection links upon hitting an invalid string, this script utilizes `TRY_CAST()`. This function forces the evaluation engine to elegantly output a standard `NULL` whenever formatting constraints are broken.
+* **Targeted Anomaly Isolation:** By restricting data collection to instances where `TRY_CAST(column) IS NULL AND column IS NOT NULL`, the script eliminates clean records and native missing data values, outputting an unmasked registry of structural corruptions (e.g., text artifacts like "N/A" hidden inside a numerical field).
+</details>
+
 ### 📊 System Administration & Monitoring
 
 <details>
