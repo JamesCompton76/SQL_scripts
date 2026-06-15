@@ -26,6 +26,10 @@ Executes an inline, iterative data purge directly against a live table (`yellow_
 * **ACID Transaction Management:** Encapsulates each independent delete action inside a standalone `BEGIN TRANSACTION` and `COMMIT` block. This approach allows the engine to continually reuse Virtual Log Files (VLFs) in the transaction log (`.ldf`), keeping the server's storage footprint lean.
 * **Defensive Exception Architecture:** Implements a robust `TRY...CATCH` framework. If a specific batch gets caught in a deadlock chain, the script rolls back *only* that individual 4,999-row pass and terminates gracefully, leaving all previous historically committed batches permanently written to disk.
 * **Real-Time Instrumentation:** Deploys `RAISERROR...WITH NOWAIT` execution notifications every 10 iterations. This bypasses standard SQL Server output buffering to stream live progress telemetry directly to the SSMS Messages tab.
+
+### Replication & Scale Notes
+* **Replication-Safe Design:** While a standard `TRUNCATE` is significantly faster, SQL Server flatly blocks truncations on any table published via Transactional Replication because it bypasses row-level transaction logging. This batch script forces granular logging, allowing the Replication Log Reader Agent to stream deletions seamlessly down to subscribers without choking.
+* **The DBA Infrastructure Alternative:** For massive enterprise tables where even chunked deletes degrade production I/O, the long-term solution shifts to the DBA domain via **Partition Switching**. By partitioning the table, an entire section of historical data can be swapped out into an un-replicated staging table via metadata pointers (`ALTER TABLE... SWITCH PARTITION`) in under 10 milliseconds, bypassing row logging entirely while remaining replication-compatible if publication flags are configured correctly.
 </details>
 
 <details>
@@ -45,6 +49,10 @@ Implements a highly sophisticated data purge strategy by completely decoupling t
 * **Dual-Pruning Synchronization Loop:** Phase 2 executes a synchronized loop that applies the `TOP (4999)` limit to *both* sides of the operation:
   * It deletes 4,999 rows from the live production table (`yellow_taxi`) using an optimized `WHERE id IN (SELECT id FROM #TargetsToPurge)` subquery seek.
   * It immediately shreds the corresponding 4,999 key records out of the temporary table (`#TargetsToPurge`). This double-cleanup ensures that subsequent subquery iterations evaluate a continually shrinking dataset, preventing performance degradation as the script nears completion.
+
+### Replication & Scale Notes
+* **Replication-Safe Design:** While a standard `TRUNCATE` is significantly faster, SQL Server flatly blocks truncations on any table published via Transactional Replication because it bypasses row-level transaction logging. This batch script forces granular logging, allowing the Replication Log Reader Agent to stream deletions seamlessly down to subscribers without choking.
+* **The DBA Infrastructure Alternative:** For massive enterprise tables where even chunked deletes degrade production I/O, the long-term solution shifts to the DBA domain via **Partition Switching**. By partitioning the table, an entire section of historical data can be swapped out into an un-replicated staging table via metadata pointers (`ALTER TABLE... SWITCH PARTITION`) in under 10 milliseconds, bypassing row logging entirely while remaining replication-compatible if publication flags are configured correctly.
 </details>
 
 <details>
